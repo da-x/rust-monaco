@@ -1,0 +1,17 @@
+.monaco-singleline {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 8px 8px;
+    border: 1px solid #d9d9d9;
+    height: 21px;
+
+    &:hover {
+	border-color: #000;
+    }
+    ::v-deep {
+	.decorationsOverviewRuler {
+	   display: none;
+	}
+    }
+}

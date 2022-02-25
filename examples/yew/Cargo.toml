@@ -11,3 +11,18 @@ crate-type = ["cdylib", "rlib"]
 monaco = { path = "../..", features = ["yew-components"] }
 wasm-bindgen = "0.2"
 yew = "0.19"
+js-sys = "0.3"
+log = "0.4"
+wasm-logger = "0.2"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "Blob",
+    "HtmlElement",
+    "KeyboardEvent",
+    "MouseEvent",
+    "Url",
+    "Window",
+    "Worker"
+]
