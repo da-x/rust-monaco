@@ -49,6 +49,7 @@ impl_default_empty_obj![
     IEditorFindOptions,
     IEditorMinimapOptions,
     IStandaloneEditorConstructionOptions,
+    IStandaloneThemeData,
 ];
 
 // DANGER: Generated code ahead. Keep out!
