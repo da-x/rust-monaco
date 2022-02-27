@@ -16,6 +16,15 @@ impl Default for Environment {
     }
 }
 
+#[wasm_bindgen(module = "/js/editor.js")]
+extern "C" {
+    #[wasm_bindgen]
+    pub fn _export_get_editor() -> JsValue;
+
+    #[wasm_bindgen]
+    pub fn _export_get_languages() -> JsValue;
+}
+
 // You're entering generated land, tread with care.
 
 #[wasm_bindgen(module = "/js/editor.js")]

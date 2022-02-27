@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c && python patch.py dist/editor.js"
   },
   "dependencies": {
     "monaco-editor": "^0.32"
