@@ -4796,3 +4796,906 @@ declare namespace monaco.editor {
   // export type IReadOnlyModel = ITextModel;
   // export type IModel = ITextModel;
 }
+
+declare namespace monaco.languages {
+
+
+    /**
+     * Register information about a new language.
+     */
+    export function register(language: ILanguageExtensionPoint): void;
+
+    /**
+     * Get the information of all the registered languages.
+     */
+    export function getLanguages(): ILanguageExtensionPoint[];
+
+    export function getEncodedLanguageId(languageId: string): number;
+
+    /**
+     * An event emitted when a language is first time needed (e.g. a model has it set).
+     * @event
+     */
+    export function onLanguage(languageId: string, callback: () => void): IDisposable;
+
+    /**
+     * Set the editing configuration for a language.
+     */
+    export function setLanguageConfiguration(languageId: string, configuration: LanguageConfiguration): IDisposable;
+
+    /**
+     * A token.
+     */
+    export interface IToken {
+        startIndex: number;
+        scopes: string;
+    }
+
+    /**
+     * The result of a line tokenization.
+     */
+    export interface ILineTokens {
+        /**
+         * The list of tokens on the line.
+         */
+        tokens: IToken[];
+        /**
+         * The tokenization end state.
+         * A pointer will be held to this and the object should not be modified by the tokenizer after the pointer is returned.
+         */
+        endState: IState;
+    }
+
+    /**
+     * The result of a line tokenization.
+     */
+    export interface IEncodedLineTokens {
+        /**
+         * The tokens on the line in a binary, encoded format. Each token occupies two array indices. For token i:
+         *  - at offset 2*i => startIndex
+         *  - at offset 2*i + 1 => metadata
+         * Meta data is in binary format:
+         * - -------------------------------------------
+         *     3322 2222 2222 1111 1111 1100 0000 0000
+         *     1098 7654 3210 9876 5432 1098 7654 3210
+         * - -------------------------------------------
+         *     bbbb bbbb bfff ffff ffFF FTTT LLLL LLLL
+         * - -------------------------------------------
+         *  - L = EncodedLanguageId (8 bits): Use `getEncodedLanguageId` to get the encoded ID of a language.
+         *  - T = StandardTokenType (3 bits): Other = 0, Comment = 1, String = 2, RegEx = 4.
+         *  - F = FontStyle (3 bits): None = 0, Italic = 1, Bold = 2, Underline = 4.
+         *  - f = foreground ColorId (9 bits)
+         *  - b = background ColorId (9 bits)
+         *  - The color value for each colorId is defined in IStandaloneThemeData.customTokenColors:
+         * e.g. colorId = 1 is stored in IStandaloneThemeData.customTokenColors[1]. Color id = 0 means no color,
+         * id = 1 is for the default foreground color, id = 2 for the default background.
+         */
+        tokens: Uint32Array;
+        /**
+         * The tokenization end state.
+         * A pointer will be held to this and the object should not be modified by the tokenizer after the pointer is returned.
+         */
+        endState: IState;
+    }
+
+    /**
+     * A "manual" provider of tokens.
+     */
+    export interface TokensProvider {
+        /**
+         * The initial state of a language. Will be the state passed in to tokenize the first line.
+         */
+        getInitialState(): IState;
+        /**
+         * Tokenize a line given the state at the beginning of the line.
+         */
+        tokenize(line: string, state: IState): ILineTokens;
+    }
+
+    /**
+     * A "manual" provider of tokens, returning tokens in a binary form.
+     */
+    export interface EncodedTokensProvider {
+        /**
+         * The initial state of a language. Will be the state passed in to tokenize the first line.
+         */
+        getInitialState(): IState;
+        /**
+         * Tokenize a line given the state at the beginning of the line.
+         */
+        tokenizeEncoded(line: string, state: IState): IEncodedLineTokens;
+    }
+
+    /**
+     * Contains additional diagnostic information about the context in which
+     * a [code action](#CodeActionProvider.provideCodeActions) is run.
+     */
+    export interface CodeActionContext {
+        /**
+         * An array of diagnostics.
+         */
+        readonly markers: editor.IMarkerData[];
+        /**
+         * Requested kind of actions to return.
+         */
+        readonly only?: string;
+    }
+
+    /**
+     * The code action interface defines the contract between extensions and
+     * the [light bulb](https://code.visualstudio.com/docs/editor/editingevolved#_code-action) feature.
+     */
+    export interface CodeActionProvider {
+        /**
+         * Provide commands for the given document and range.
+         */
+        provideCodeActions(model: editor.ITextModel, range: Range, context: CodeActionContext, token: CancellationToken): ProviderResult<CodeActionList>;
+    }
+
+    /**
+     * Describes how comments for a language work.
+     */
+    export interface CommentRule {
+        /**
+         * The line comment token, like `// this is a comment`
+         */
+        lineComment?: string | null;
+        /**
+         * The block comment character pair, like `/* block comment *&#47;`
+         */
+        blockComment?: CharacterPair | null;
+    }
+
+    /**
+     * The language configuration interface defines the contract between extensions and
+     * various editor features, like automatic bracket insertion, automatic indentation etc.
+     */
+    export interface LanguageConfiguration {
+        /**
+         * The language's comment settings.
+         */
+        comments?: CommentRule;
+        /**
+         * The language's brackets.
+         * This configuration implicitly affects pressing Enter around these brackets.
+         */
+        brackets?: CharacterPair[];
+        /**
+         * The language's word definition.
+         * If the language supports Unicode identifiers (e.g. JavaScript), it is preferable
+         * to provide a word definition that uses exclusion of known separators.
+         */
+        wordPattern?: RegExp;
+        /**
+         * The language's indentation settings.
+         */
+        indentationRules?: IndentationRule;
+        /**
+         * The language's rules to be evaluated when pressing Enter.
+         */
+        onEnterRules?: OnEnterRule[];
+        /**
+         * The language's auto closing pairs. The 'close' character is automatically inserted with the
+         * 'open' character is typed. If not set, the configured brackets will be used.
+         */
+        autoClosingPairs?: IAutoClosingPairConditional[];
+        /**
+         * The language's surrounding pairs. When the 'open' character is typed on a selection, the
+         * selected string is surrounded by the open and close characters. If not set, the autoclosing pairs
+         * settings will be used.
+         */
+        surroundingPairs?: IAutoClosingPair[];
+        /**
+         * Defines what characters must be after the cursor for bracket or quote autoclosing to occur when using the \'languageDefined\' autoclosing setting.
+         *
+         * This is typically the set of characters which can not start an expression, such as whitespace, closing brackets, non-unary operators, etc.
+         */
+        autoCloseBefore?: string;
+        /**
+         * The language's folding rules.
+         */
+        folding?: FoldingRules;
+    }
+
+    /**
+     * Describes indentation rules for a language.
+     */
+    export interface IndentationRule {
+        /**
+         * If a line matches this pattern, then all the lines after it should be unindented once (until another rule matches).
+         */
+        decreaseIndentPattern: RegExp;
+        /**
+         * If a line matches this pattern, then all the lines after it should be indented once (until another rule matches).
+         */
+        increaseIndentPattern: RegExp;
+        /**
+         * If a line matches this pattern, then **only the next line** after it should be indented once.
+         */
+        indentNextLinePattern?: RegExp | null;
+        /**
+         * If a line matches this pattern, then its indentation should not be changed and it should not be evaluated against the other rules.
+         */
+        unIndentedLinePattern?: RegExp | null;
+    }
+
+    /**
+     * Describes language specific folding markers such as '#region' and '#endregion'.
+     * The start and end regexes will be tested against the contents of all lines and must be designed efficiently:
+     * - the regex should start with '^'
+     * - regexp flags (i, g) are ignored
+     */
+    export interface FoldingMarkers {
+        start: RegExp;
+        end: RegExp;
+    }
+
+    /**
+     * Describes folding rules for a language.
+     */
+    export interface FoldingRules {
+        /**
+         * Used by the indentation based strategy to decide whether empty lines belong to the previous or the next block.
+         * A language adheres to the off-side rule if blocks in that language are expressed by their indentation.
+         * See [wikipedia](https://en.wikipedia.org/wiki/Off-side_rule) for more information.
+         * If not set, `false` is used and empty lines belong to the previous block.
+         */
+        offSide?: boolean;
+        /**
+         * Region markers used by the language.
+         */
+        markers?: FoldingMarkers;
+    }
+
+    /**
+     * Describes a rule to be evaluated when pressing Enter.
+     */
+    export interface OnEnterRule {
+        /**
+         * This rule will only execute if the text before the cursor matches this regular expression.
+         */
+        beforeText: RegExp;
+        /**
+         * This rule will only execute if the text after the cursor matches this regular expression.
+         */
+        afterText?: RegExp;
+        /**
+         * This rule will only execute if the text above the this line matches this regular expression.
+         */
+        oneLineAboveText?: RegExp;
+        /**
+         * The action to execute.
+         */
+        action: EnterAction;
+    }
+
+    /**
+     * Definition of documentation comments (e.g. Javadoc/JSdoc)
+     */
+    export interface IDocComment {
+        /**
+         * The string that starts a doc comment (e.g. '/**')
+         */
+        open: string;
+        /**
+         * The string that appears on the last line and closes the doc comment (e.g. ' * /').
+         */
+        close?: string;
+    }
+
+    /**
+     * A tuple of two characters, like a pair of
+     * opening and closing brackets.
+     */
+    export type CharacterPair = "string"; // Hack
+
+    export interface IAutoClosingPair {
+        open: string;
+        close: string;
+    }
+
+    export interface IAutoClosingPairConditional extends IAutoClosingPair {
+        notIn?: string[];
+    }
+
+    /**
+     * Describes what to do with the indentation when pressing Enter.
+     */
+    export enum IndentAction {
+        /**
+         * Insert new line and copy the previous line's indentation.
+         */
+        None = 0,
+        /**
+         * Insert new line and indent once (relative to the previous line's indentation).
+         */
+        Indent = 1,
+        /**
+         * Insert two new lines:
+         *  - the first one indented which will hold the cursor
+         *  - the second one at the same indentation level
+         */
+        IndentOutdent = 2,
+        /**
+         * Insert new line and outdent once (relative to the previous line's indentation).
+         */
+        Outdent = 3,
+    }
+
+    /**
+     * Describes what to do when pressing Enter.
+     */
+    export interface EnterAction {
+        /**
+         * Describe what to do with the indentation.
+         */
+        indentAction: IndentAction;
+        /**
+         * Describes text to be appended after the new line and after the indentation.
+         */
+        appendText?: string;
+        /**
+         * Describes the number of characters to remove from the new line's indentation.
+         */
+        removeText?: number;
+    }
+
+    /**
+     * The state of the tokenizer between two lines.
+     * It is useful to store flags such as in multiline comment, etc.
+     * The model will clone the previous line's state and pass it in to tokenize the next line.
+     */
+    export interface IState {
+        clone(): IState;
+        equals(other: IState): boolean;
+    }
+
+    /**
+     * A hover represents additional information for a symbol or word. Hovers are
+     * rendered in a tooltip-like widget.
+     */
+    export interface Hover {
+        /**
+         * The contents of this hover.
+         */
+        contents: IMarkdownString[];
+        /**
+         * The range to which this hover applies. When missing, the
+         * editor will use the range at the current position or the
+         * current position itself.
+         */
+        range?: IRange;
+    }
+
+    export enum CompletionItemKind {
+        Method = 0,
+        Function = 1,
+        Constructor = 2,
+        Field = 3,
+        Variable = 4,
+        Class = 5,
+        Struct = 6,
+        Interface = 7,
+        Module = 8,
+        Property = 9,
+        Event = 10,
+        Operator = 11,
+        Unit = 12,
+        Value = 13,
+        Constant = 14,
+        Enum = 15,
+        EnumMember = 16,
+        Keyword = 17,
+        Text = 18,
+        Color = 19,
+        File = 20,
+        Reference = 21,
+        Customcolor = 22,
+        Folder = 23,
+        TypeParameter = 24,
+        Snippet = 25,
+    }
+
+    export interface CompletionItemLabel {
+        /**
+         * The function or variable. Rendered leftmost.
+         */
+        name: string;
+        /**
+         * The signature without the return type. Render after `name`.
+         */
+        signature?: string;
+        /**
+         * The fully qualified name, like package name or file path. Rendered after `signature`.
+         */
+        qualifier?: string;
+        /**
+         * The return-type of a function or type of a property/variable. Rendered rightmost.
+         */
+        type?: string;
+    }
+
+    export enum CompletionItemTag {
+        Deprecated = 1,
+    }
+
+    export enum CompletionItemInsertTextRule {
+        /**
+         * Adjust whitespace/indentation of multiline insert texts to
+         * match the current line indentation.
+         */
+        KeepWhitespace = 1,
+        /**
+         * `insertText` is a snippet.
+         */
+        InsertAsSnippet = 4,
+    }
+
+    /**
+     * A completion item represents a text snippet that is
+     * proposed to complete text that is being typed.
+     */
+    export interface CompletionItem {
+        label: string | CompletionItemLabel;
+        kind: CompletionItemKind;
+        tags?: ReadonlyArray<CompletionItemTag>;
+        /**
+         * A human-readable string with additional information
+         * about this item, like type or symbol information.
+         */
+        detail?: string;
+        /**
+         * A human-readable string that represents a doc-comment.
+         */
+        documentation?: string | IMarkdownString;
+        /**
+         * A string that should be used when comparing this item
+         * with other items. When `falsy` the [label](#CompletionItem.label)
+         * is used.
+         */
+        sortText?: string;
+        /**
+         * A string that should be used when filtering a set of
+         * completion items. When `falsy` the [label](#CompletionItem.label)
+         * is used.
+         */
+        filterText?: string;
+        /**
+         * Select this item when showing. *Note* that only one completion item can be selected and
+         * that the editor decides which item that is. The rule is that the *first* item of those
+         * that match best is selected.
+         */
+        preselect?: boolean;
+        /**
+         * A string or snippet that should be inserted in a document when selecting
+         * this completion. When `falsy` the [label](#CompletionItem.label)
+         * is used.
+         */
+        insertText: string;
+        /**
+         * Addition rules (as bitmask) that should be applied when inserting
+         * this completion.
+         */
+        insertTextRules?: CompletionItemInsertTextRule;
+    }
+
+    export interface CompletionList {
+        suggestions: CompletionItem[];
+        incomplete?: boolean;
+    }
+
+    /**
+     * How a suggest provider was triggered.
+     */
+    export enum CompletionTriggerKind {
+        Invoke = 0,
+        TriggerCharacter = 1,
+        TriggerForIncompleteCompletions = 2,
+    }
+
+    /**
+     * Contains additional information about the context in which
+     * [completion provider](#CompletionItemProvider.provideCompletionItems) is triggered.
+     */
+    export interface CompletionContext {
+        /**
+         * How the completion was triggered.
+         */
+        triggerKind: CompletionTriggerKind;
+        /**
+         * Character that triggered the completion item provider.
+         *
+         * `undefined` if provider was not triggered by a character.
+         */
+        triggerCharacter?: string;
+    }
+
+    export interface CodeAction {
+        title: string;
+        command?: Command;
+        edit?: WorkspaceEdit;
+        diagnostics?: editor.IMarkerData[];
+        kind?: string;
+        isPreferred?: boolean;
+        disabled?: string;
+    }
+
+    export interface CodeActionList extends IDisposable {
+        readonly actions: ReadonlyArray<CodeAction>;
+    }
+
+    /**
+     * Represents a parameter of a callable-signature. A parameter can
+     * have a label and a doc-comment.
+     */
+    export interface ParameterInformation {
+        /**
+         * The label of this signature. Will be shown in
+         * the UI.
+         */
+        label: string | [number, number];
+        /**
+         * The human-readable doc-comment of this signature. Will be shown
+         * in the UI but can be omitted.
+         */
+        documentation?: string | IMarkdownString;
+    }
+
+    /**
+     * Represents the signature of something callable. A signature
+     * can have a label, like a function-name, a doc-comment, and
+     * a set of parameters.
+     */
+    export interface SignatureInformation {
+        /**
+         * The label of this signature. Will be shown in
+         * the UI.
+         */
+        label: string;
+        /**
+         * The human-readable doc-comment of this signature. Will be shown
+         * in the UI but can be omitted.
+         */
+        documentation?: string | IMarkdownString;
+        /**
+         * The parameters of this signature.
+         */
+        parameters: ParameterInformation[];
+    }
+
+    /**
+     * Signature help represents the signature of something
+     * callable. There can be multiple signatures but only one
+     * active and only one active parameter.
+     */
+    export interface SignatureHelp {
+        /**
+         * One or more signatures.
+         */
+        signatures: SignatureInformation[];
+        /**
+         * The active signature.
+         */
+        activeSignature: number;
+        /**
+         * The active parameter of the active signature.
+         */
+        activeParameter: number;
+    }
+
+    export interface SignatureHelpResult extends IDisposable {
+        value: SignatureHelp;
+    }
+
+    export enum SignatureHelpTriggerKind {
+        Invoke = 1,
+        TriggerCharacter = 2,
+        ContentChange = 3,
+    }
+
+    export interface SignatureHelpContext {
+        readonly triggerKind: SignatureHelpTriggerKind;
+        readonly triggerCharacter?: string;
+        readonly isRetrigger: boolean;
+        readonly activeSignatureHelp?: SignatureHelp;
+    }
+
+    /**
+     * A document highlight kind.
+     */
+    export enum DocumentHighlightKind {
+        /**
+         * A textual occurrence.
+         */
+        Text = 0,
+        /**
+         * Read-access of a symbol, like reading a variable.
+         */
+        Read = 1,
+        /**
+         * Write-access of a symbol, like writing to a variable.
+         */
+        Write = 2,
+    }
+
+    /**
+     * A document highlight is a range inside a text document which deserves
+     * special attention. Usually a document highlight is visualized by changing
+     * the background color of its range.
+     */
+    export interface DocumentHighlight {
+        /**
+         * The range this highlight applies to.
+         */
+        range: IRange;
+        /**
+         * The highlight kind, default is [text](#DocumentHighlightKind.Text).
+         */
+        kind?: DocumentHighlightKind;
+    }
+
+    /**
+     * Value-object that contains additional information when
+     * requesting references.
+     */
+    export interface ReferenceContext {
+        /**
+         * Include the declaration of the current symbol.
+         */
+        includeDeclaration: boolean;
+    }
+
+    /**
+     * Represents a location inside a resource, such as a line
+     * inside a text file.
+     */
+    export interface Location {
+        /**
+         * The resource identifier of this location.
+         */
+        uri: Uri;
+        /**
+         * The document range of this locations.
+         */
+        range: IRange;
+    }
+
+    export interface LocationLink {
+        /**
+         * A range to select where this link originates from.
+         */
+        originSelectionRange?: IRange;
+        /**
+         * The target uri this link points to.
+         */
+        uri: Uri;
+        /**
+         * The full range this link points to.
+         */
+        range: IRange;
+        /**
+         * A range to select this link points to. Must be contained
+         * in `LocationLink.range`.
+         */
+        targetSelectionRange?: IRange;
+    }
+
+    export type Definition = "string"; // HACK
+
+    /**
+     * A symbol kind.
+     */
+    export enum SymbolKind {
+        File = 0,
+        Module = 1,
+        Namespace = 2,
+        Package = 3,
+        Class = 4,
+        Method = 5,
+        Property = 6,
+        Field = 7,
+        Constructor = 8,
+        Enum = 9,
+        Interface = 10,
+        Function = 11,
+        Variable = 12,
+        Constant = 13,
+        String = 14,
+        Number = 15,
+        Boolean = 16,
+        Array = 17,
+        Object = 18,
+        Key = 19,
+        Null = 20,
+        EnumMember = 21,
+        Struct = 22,
+        Event = 23,
+        Operator = 24,
+        TypeParameter = 25,
+    }
+
+    export enum SymbolTag {
+        Deprecated = 1,
+    }
+
+    export interface DocumentSymbol {
+        name: string;
+        detail: string;
+        kind: SymbolKind;
+        tags: ReadonlyArray<SymbolTag>;
+        containerName?: string;
+        range: IRange;
+        selectionRange: IRange;
+        children?: DocumentSymbol[];
+    }
+
+    /**
+     * Interface used to format a model
+     */
+    export interface FormattingOptions {
+        /**
+         * Size of a tab in spaces.
+         */
+        tabSize: number;
+        /**
+         * Prefer spaces over tabs.
+         */
+        insertSpaces: boolean;
+    }
+
+    /**
+     * A link inside the editor.
+     */
+    export interface ILink {
+        range: IRange;
+        url?: Uri | string;
+        tooltip?: string;
+    }
+
+    export interface ILinksList {
+        links: ILink[];
+    }
+
+    /**
+     * A color in RGBA format.
+     */
+    export interface IColor {
+        /**
+         * The red component in the range [0-1].
+         */
+        readonly red: number;
+        /**
+         * The green component in the range [0-1].
+         */
+        readonly green: number;
+        /**
+         * The blue component in the range [0-1].
+         */
+        readonly blue: number;
+        /**
+         * The alpha component in the range [0-1].
+         */
+        readonly alpha: number;
+    }
+
+    /**
+     * A color range is a range in a text model which represents a color.
+     */
+    export interface IColorInformation {
+        /**
+         * The range within the model.
+         */
+        range: IRange;
+        /**
+         * The color represented in this range.
+         */
+        color: IColor;
+    }
+
+    export interface SelectionRange {
+        range: IRange;
+    }
+
+     export interface FoldingRange {
+        /**
+         * The one-based start line of the range to fold. The folded area starts after the line's last character.
+         */
+        start: number;
+        /**
+         * The one-based end line of the range to fold. The folded area ends with the line's last character.
+         */
+        end: number;
+        /**
+         * Describes the [Kind](#FoldingRangeKind) of the folding range such as [Comment](#FoldingRangeKind.Comment) or
+         * [Region](#FoldingRangeKind.Region). The kind is used to categorize folding ranges and used by commands
+         * like 'Fold all comments'. See
+         * [FoldingRangeKind](#FoldingRangeKind) for an enumeration of standardized kinds.
+         */
+        kind?: FoldingRangeKind;
+    }
+
+    export class FoldingRangeKind {
+        value: string;
+        /**
+         * Kind for folding range representing a comment. The value of the kind is 'comment'.
+         */
+        static readonly Comment: FoldingRangeKind;
+        /**
+         * Kind for folding range representing a import. The value of the kind is 'imports'.
+         */
+        static readonly Imports: FoldingRangeKind;
+        /**
+         * Kind for folding range representing regions (for example marked by `#region`, `#endregion`).
+         * The value of the kind is 'region'.
+         */
+        static readonly Region: FoldingRangeKind;
+        /**
+         * Creates a new [FoldingRangeKind](#FoldingRangeKind).
+         *
+         * @param value of the kind.
+         */
+        constructor(value: string);
+    }
+
+    export interface WorkspaceFileEditOptions {
+        overwrite?: boolean;
+        ignoreIfNotExists?: boolean;
+        ignoreIfExists?: boolean;
+        recursive?: boolean;
+    }
+
+    export interface RenameLocation {
+        range: IRange;
+        text: string;
+    }
+
+    export interface Command {
+        id: string;
+        title: string;
+        tooltip?: string;
+        arguments?: any[];
+    }
+
+    export interface CodeLens {
+        range: IRange;
+        id?: string;
+        command?: Command;
+    }
+
+    export interface CodeLensList {
+        lenses: CodeLens[];
+        dispose(): void;
+    }
+
+    export interface SemanticTokensLegend {
+        readonly tokenTypes: string[];
+        readonly tokenModifiers: string[];
+    }
+
+    export interface SemanticTokens {
+        readonly resultId?: string;
+        readonly data: Uint32Array;
+    }
+
+    export interface SemanticTokensEdit {
+        readonly start: number;
+        readonly deleteCount: number;
+        readonly data?: Uint32Array;
+    }
+
+    export interface SemanticTokensEdits {
+        readonly resultId?: string;
+        readonly edits: SemanticTokensEdit[];
+    }
+
+    export interface ILanguageExtensionPoint {
+        id: string;
+        extensions?: string[];
+        filenames?: string[];
+        filenamePatterns?: string[];
+        firstLine?: string;
+        aliases?: string[];
+        mimetypes?: string[];
+        configuration?: Uri;
+    }
+}
