@@ -16,7 +16,7 @@ impl Default for Environment {
     }
 }
 
-#[wasm_bindgen(module = "/js/editor.js")]
+#[wasm_bindgen(raw_module = "/static/monaco-editor-0.32.1.js")]
 extern "C" {
     #[wasm_bindgen]
     pub fn _export_get_editor() -> JsValue;
@@ -27,7 +27,7 @@ extern "C" {
 
 // You're entering generated land, tread with care.
 
-#[wasm_bindgen(module = "/js/editor.js")]
+#[wasm_bindgen(raw_module = "/static/monaco-editor-0.32.1.js")]
 extern "C" {
     /// A helper that allows to emit and listen to typed events
     #[derive(Debug)]

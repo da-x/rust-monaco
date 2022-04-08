@@ -15,6 +15,12 @@ js-sys = "0.3"
 log = "0.4"
 wasm-logger = "0.2"
 
+[profile.release]
+strip = "debuginfo"
+lto = true
+incremental = false
+codegen-units = 1
+
 [dependencies.web-sys]
 version = "0.3"
 features = [

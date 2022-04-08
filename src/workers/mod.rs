@@ -1,38 +1,36 @@
 //! Embedded Javascript code for Monaco's language Web Workers.
 //! Requires the "workers" feature (enabled by default).
 use crate::sys::{Environment, GetWorkerFn};
-use js_sys::Array;
-use std::iter;
-use wasm_bindgen::{closure::Closure, JsCast, JsValue};
-use web_sys::{Blob, Url, Worker};
+use wasm_bindgen::{closure::Closure, JsCast};
+use web_sys::Worker;
 
+#[cfg(not(target_arch = "wasm32"))]
 macro_rules! include_worker {
     ($name: literal) => {
         include_str!(concat!("../../js/", $name))
     };
 }
 
-const EDITOR_WORKER: &str = include_worker!("editor.worker.js");
+#[cfg(not(target_arch = "wasm32"))]
+pub const EDITOR_WORKER: (&str, &str) = ("editor", include_worker!("editor.worker.js"));
 
-const CSS_WORKER: &str = include_worker!("css.worker.js");
-const HTML_WORKER: &str = include_worker!("html.worker.js");
-const JSON_WORKER: &str = include_worker!("json.worker.js");
+#[cfg(not(target_arch = "wasm32"))]
+pub const CSS_WORKER: (&str, &str) = ("css", include_worker!("css.worker.js"));
 
-fn create_worker(source: &str) -> Result<Worker, JsValue> {
-    let array: Array = iter::once(JsValue::from_str(source)).collect();
-    let blob = Blob::new_with_str_sequence(&array)?;
-    let url = Url::create_object_url_with_blob(&blob)?;
-    Worker::new(&url)
+#[cfg(not(target_arch = "wasm32"))]
+pub const HTML_WORKER: (&str, &str) = ("html", include_worker!("html.worker.js"));
+
+#[cfg(not(target_arch = "wasm32"))]
+pub const JSON_WORKER: (&str, &str) = ("json", include_worker!("json.worker.js"));
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn worker_to_file(inp: (&'static str, &'static str)) -> (String, &'static str) {
+    (format!("/static/monaco-editor.{}.0.32.1.js", inp.0), inp.1)
 }
 
 fn get_worker(_id: String, label: String) -> Worker {
-    let worker = match label.as_str() {
-        "css" => CSS_WORKER,
-        "html" => HTML_WORKER,
-        "json" => JSON_WORKER,
-        _ => EDITOR_WORKER,
-    };
-    create_worker(worker).expect("failed to create worker")
+    let url = format!("/static/monaco-editor.{}.0.32.1.js", label.as_str());
+    Worker::new(&url).expect("failed to create worker")
 }
 
 fn build_environment() -> Environment {

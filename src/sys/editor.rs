@@ -185,7 +185,11 @@ int_enum! {
     }
 }
 
-#[wasm_bindgen(module = "/js/editor.js")]
+#[cfg(not(target_arch = "wasm32"))]
+pub const EDITOR_CODE_JS: (&str, &str) =
+    ("/static/monaco-editor-0.32.1.js", include_str!("../../js/editor.js"));
+
+#[wasm_bindgen(raw_module = "/static/monaco-editor-0.32.1.js")]
 extern "C" {
     /// Create a new editor under `domElement`.
     /// `domElement` should be empty (not contain other dom nodes).

@@ -18,6 +18,7 @@ mod model;
 #[must_use = "immediately disposed when dropped"]
 #[derive(Debug)]
 pub struct DisposableClosure<T: ?Sized> {
+    #[allow(unused)]
     closure: Closure<T>,
     js_disposable: IDisposable,
 }
