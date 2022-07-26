@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments)]
 //! Bindings for the `monaco` namespace.
 use js_sys::{Array, Function, Object};
 use wasm_bindgen::{prelude::*, JsCast};
@@ -16,18 +17,9 @@ impl Default for Environment {
     }
 }
 
-#[wasm_bindgen(raw_module = "/static/monaco-editor-0.32.1.js")]
-extern "C" {
-    #[wasm_bindgen]
-    pub fn _export_get_editor() -> JsValue;
-
-    #[wasm_bindgen]
-    pub fn _export_get_languages() -> JsValue;
-}
-
 // You're entering generated land, tread with care.
 
-#[wasm_bindgen(raw_module = "/static/monaco-editor-0.32.1.js")]
+#[wasm_bindgen]
 extern "C" {
     /// A helper that allows to emit and listen to typed events
     #[derive(Debug)]
@@ -180,7 +172,7 @@ extern "C" {
     /// column (the first character in a line is between column 1 and column 2)
     #[wasm_bindgen(method, js_class = "Position", js_name = "column", getter = column)]
     pub fn column(this: &Position) -> f64;
-    #[wasm_bindgen(constructor, js_class = "Position")]
+    #[wasm_bindgen(constructor, js_class = "Position", js_namespace = ["monacoPackage"])]
     pub fn new(line_number: f64, column: f64) -> Position;
     /// Create a new position from this position.
     ///
